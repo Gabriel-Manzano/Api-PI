@@ -262,3 +262,39 @@ def get_post_with_comments(post_id: int, db: Session = Depends(get_db)):
     }
 
     return post_data
+
+
+
+# ---------- Likes y Dislikes para Posts ----------
+
+@router.post("/posts/{post_id}/dislike")
+def dislike_post(post_id: int, db: Session = Depends(get_db)):
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post no encontrado")
+
+    post.dislikes += 1
+    db.commit()
+    return {"message": "Dislike registrado en post"}
+
+# ---------- Likes y Dislikes para Comments ----------
+
+@router.post("/comments/{comment_id}/like")
+def like_comment(comment_id: int, db: Session = Depends(get_db)):
+    comment = db.query(Comment).filter(Comment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comentario no encontrado")
+
+    comment.likes += 1
+    db.commit()
+    return {"message": "Like registrado en comentario"}
+
+@router.post("/comments/{comment_id}/dislike")
+def dislike_comment(comment_id: int, db: Session = Depends(get_db)):
+    comment = db.query(Comment).filter(Comment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comentario no encontrado")
+
+    comment.dislikes += 1
+    db.commit()
+    return {"message": "Dislike registrado en comentario"}
