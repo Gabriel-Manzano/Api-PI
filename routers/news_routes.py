@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request, Response
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -68,7 +68,7 @@ def get_posts(db: Session = Depends(get_db)):
         "description": p.description,
         "likes": p.likes,
         "dislikes": p.dislikes,
-        "image_preview": (base64.b64encode(p.image).decode('utf-8')[:50] + "..." if p.image else None)
+        "image_url": f"/news/images/{p.id}" if p.image else None  # Se retorna URL en lugar de la imagen completa
     } for p in posts]
     return posts_data
 
@@ -267,10 +267,3 @@ def dislike_comment(comment_id: int, db: Session = Depends(get_db)):
     comment.dislikes += 1
     db.commit()
     return {"message": "Dislike registrado en comentario"}
-
-@router.get("/images/{post_id}")
-def get_image(post_id: int, db: Session = Depends(get_db)):
-    post = db.query(Post).filter(Post.id == post_id).first()
-    if not post or not post.image:
-        raise HTTPException(status_code=404, detail="Imagen no encontrada")
-    return Response(content=post.image, media_type="image/jpeg")
