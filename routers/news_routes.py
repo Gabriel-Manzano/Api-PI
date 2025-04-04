@@ -4,8 +4,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 import base64  # <-- Importamos base64 para codificar imágenes
 from DB.conexion import Session as SessionLocal
-from models.modelsNews import Post, Comment
-from models.modelsNews import Like
+from models.modelsDB import Post, Comment
+from models.modelsDB import Like
 
 router = APIRouter(prefix="/news", tags=["News"])
 
