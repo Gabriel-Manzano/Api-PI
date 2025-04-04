@@ -91,24 +91,28 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
 @router.put("/posts/{post_id}")
 async def update_post(
     post_id: int,
+    user_id: Optional[int] = Form(None),
     title: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
+    likes: Optional[int] = Form(None),
+    dislikes: Optional[int] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
     post = db.query(Post).filter(Post.id == post_id).first()
-
     if not post:
         raise HTTPException(status_code=404, detail="Post no encontrado")
 
-    # ✅ Solo actualizamos si se manda el campo con valor
+    if user_id is not None:
+        post.user_id = user_id
     if title is not None:
         post.title = title
-
     if description is not None:
         post.description = description
-
-    # ✅ Verificamos que realmente se subió un archivo válido
+    if likes is not None:
+        post.likes = likes
+    if dislikes is not None:
+        post.dislikes = dislikes
     if image and image.filename and image.content_type and image.content_type.startswith("image/"):
         post.image = await image.read()
 
@@ -119,10 +123,12 @@ async def update_post(
         "message": "Post actualizado correctamente",
         "post": {
             "id": post.id,
+            "user_id": post.user_id,
             "title": post.title,
             "description": post.description,
             "likes": post.likes,
-            "dislikes": post.dislikes
+            "dislikes": post.dislikes,
+            "image": base64.b64encode(post.image).decode('utf-8') if post.image else None
         }
     }
 
