@@ -68,7 +68,7 @@ def get_posts(db: Session = Depends(get_db)):
         "description": p.description,
         "likes": p.likes,
         "dislikes": p.dislikes,
-        "image_url": f"/news/images/{p.id}" if p.image else None  # Se retorna URL en lugar de la imagen completa
+        "image": base64.b64encode(p.image).decode('utf-8') if p.image else None  # Se agrega la imagen codificada
     } for p in posts]
     return posts_data
 
