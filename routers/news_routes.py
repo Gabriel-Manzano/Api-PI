@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
+import base64  # <-- Importamos base64 para codificar imágenes
 from DB.conexion import Session as SessionLocal
 from models.modelsNews import Post, Comment
 from models.modelsNews import Like
@@ -66,7 +67,8 @@ def get_posts(db: Session = Depends(get_db)):
         "title": p.title,
         "description": p.description,
         "likes": p.likes,
-        "dislikes": p.dislikes
+        "dislikes": p.dislikes,
+        "image_preview": (base64.b64encode(p.image).decode('utf-8')[:50] + "..." if p.image else None)
     } for p in posts]
     return posts_data
 
@@ -82,22 +84,9 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
         "title": post.title,
         "description": post.description,
         "likes": post.likes,
-        "dislikes": post.dislikes
+        "dislikes": post.dislikes,
+        "image": base64.b64encode(post.image).decode('utf-8') if post.image else None  # Se incluye la imagen
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 @router.put("/posts/{post_id}")
 async def update_post(
@@ -136,21 +125,6 @@ async def update_post(
             "dislikes": post.dislikes
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 @router.delete("/posts/{post_id}")
 def delete_post(post_id: int, db: Session = Depends(get_db)):
@@ -208,9 +182,6 @@ def delete_comment(comment_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Comentario eliminado"}
 
-
-
-
 @router.post("/posts/{post_id}/like")
 def like_post(post_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
     # Verifica si ya dio like
@@ -231,7 +202,6 @@ def like_post(post_id: int, user_id: int = Form(...), db: Session = Depends(get_
 
     return {"message": "Like registrado"}
 
-
 @router.get("/posts/{post_id}/detalles")
 def get_post_with_comments(post_id: int, db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == post_id).first()
@@ -249,6 +219,7 @@ def get_post_with_comments(post_id: int, db: Session = Depends(get_db)):
         "description": post.description,
         "likes": post.likes,
         "dislikes": post.dislikes,
+        "image": base64.b64encode(post.image).decode('utf-8') if post.image else None,  # Se incluye la imagen en los detalles
         "comments": [
             {
                 "id": c.id,
@@ -262,8 +233,6 @@ def get_post_with_comments(post_id: int, db: Session = Depends(get_db)):
     }
 
     return post_data
-
-
 
 # ---------- Likes y Dislikes para Posts ----------
 
@@ -298,3 +267,10 @@ def dislike_comment(comment_id: int, db: Session = Depends(get_db)):
     comment.dislikes += 1
     db.commit()
     return {"message": "Dislike registrado en comentario"}
+
+@router.get("/images/{post_id}")
+def get_image(post_id: int, db: Session = Depends(get_db)):
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post or not post.image:
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+    return Response(content=post.image, media_type="image/jpeg")
