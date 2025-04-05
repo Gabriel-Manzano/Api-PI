@@ -8,8 +8,6 @@ class Role(Base):
     
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False, unique=True)
-    
-    # Relación con los usuarios
     users = relationship("User", back_populates="role")
 
 class User(Base):
@@ -22,32 +20,25 @@ class User(Base):
     role_id = Column(Integer, ForeignKey("tbRoles.id"), nullable=False, default=2)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-
-    # Relación con Role
+ 
     role_id = Column(Integer, ForeignKey("tbRoles.id"), nullable=False, default=2)  # Por defecto rol de usuario
     role = relationship("Role", back_populates="users")
-    
-    # Relación con posts (noticias)
     posts = relationship("Post", back_populates="user")
-    
-    # Relación con comentarios
     comments = relationship("Comment", back_populates="user")
 class Post(Base):
     __tablename__ = 'tbPosts'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('tbUsers.id'))  # Relación con usuarios
+    user_id = Column(Integer, ForeignKey('tbUsers.id')) 
     created_at = Column(DateTime, default=func.now())
     title = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    image = Column(LargeBinary)  # Imagen de la noticia, puede ser None si no se envía imagen
+    image = Column(LargeBinary) 
     likes = Column(Integer, default=0)
     dislikes = Column(Integer, default=0)
-    
-    # Relación con usuario
+
     user = relationship("User", back_populates="posts")
     
-    # Relación con comentarios
     comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
 
 
@@ -55,8 +46,8 @@ class Comment(Base):
     __tablename__ = 'tbComments'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    post_id = Column(Integer, ForeignKey('tbPosts.id'))  # Relación con posts (noticias)
-    user_id = Column(Integer, ForeignKey('tbUsers.id'))  # Relación con usuarios
+    post_id = Column(Integer, ForeignKey('tbPosts.id')) 
+    user_id = Column(Integer, ForeignKey('tbUsers.id')) 
     created_at = Column(DateTime, default=func.now())
     description = Column(String, nullable=False)
     likes = Column(Integer, default=0)
@@ -73,14 +64,11 @@ class Like(Base):
     __tablename__ = 'tbLikes'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('tbUsers.id'))  # Relación con usuarios
-    post_id = Column(Integer, ForeignKey('tbPosts.id'))  # Relación con posts (noticias)
+    user_id = Column(Integer, ForeignKey('tbUsers.id'))  
+    post_id = Column(Integer, ForeignKey('tbPosts.id'))  
 
     __table_args__ = (UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
     
-    # Relación con usuario
     user = relationship("User")
-    
-    # Relación con post
     post = relationship("Post")
 
