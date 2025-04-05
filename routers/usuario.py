@@ -5,7 +5,10 @@ from DB.conexion import Session
 from models.modelsDB import User
 from fastapi import APIRouter
 from pydantic import BaseModel
-
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
+from fastapi import HTTPException
+from datetime import datetime, timedelta
 routerUsuario = APIRouter()
 
 # Nuevo modelo para las credenciales de login
@@ -121,19 +124,43 @@ def eliminarUsuario(id: int):
     finally:
         db.close()
 
+
+
+SECRET_KEY = "mi_secreto" 
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+
+def createToken(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    token: str = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+    return token
+
+
+def validateToken(token: str):
+    try:
+        data: dict = jwt.decode(token, key=SECRET_KEY, algorithms=[ALGORITHM])
+        return data
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=403, detail="Token Expirado")
+    except InvalidTokenError:
+        raise HTTPException(status_code=403, detail="Token no autorizado")
+    
+
+
 # Nuevo endpoint para autenticación (login)
 @routerUsuario.post('/login', tags=['Autenticacion'])
 def login(credenciales: modeloCredenciales):
     db = Session()
     try:
-        # Filtrar por email en lugar de username
         usuario = db.query(User).filter(User.email == credenciales.email).first()
         if not usuario:
             return JSONResponse(status_code=404, content={"message": "Usuario no encontrado"})
         if usuario.password != credenciales.password:
             return JSONResponse(status_code=401, content={"message": "Credenciales inválidas"})
-        # Generación simulada de token usando el email
-        token = "fake-token-for-" + usuario.email
+        token = createToken({"sub": usuario.email})
         return JSONResponse(status_code=200, content={"token": token})
     except Exception as e:
         return JSONResponse(status_code=500, content={"message": "Error al autenticar", "Exception": str(e)})
