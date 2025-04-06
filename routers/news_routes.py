@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, R
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
-import base64  # <-- Importamos base64 para codificar imágenes
+import base64
 from DB.conexion import Session as SessionLocal
-from models.modelsDB import Post, Comment
-from models.modelsDB import Like
+from models.modelsDB import Post, Comment, NewsLike, NewsDislike, CommentLike, CommentDislike
+from fastapi.encoders import jsonable_encoder
 
 router = APIRouter(prefix="/news", tags=["News"])
 
@@ -21,7 +21,7 @@ class PostCreate(BaseModel):
     user_id: int
     title: str
     description: str
-    image: Optional[bytes] = None  # Se recomienda enviar imagen en base64 y decodificar
+    image: Optional[bytes] = None
 
 class PostUpdate(BaseModel):
     title: Optional[str] = None
@@ -68,7 +68,7 @@ def get_posts(db: Session = Depends(get_db)):
         "description": p.description,
         "likes": p.likes,
         "dislikes": p.dislikes,
-        "image": base64.b64encode(p.image).decode('utf-8') if p.image else None  # Se agrega la imagen codificada
+        "image": base64.b64encode(p.image).decode('utf-8') if p.image else None
     } for p in posts]
     return posts_data
 
@@ -85,7 +85,7 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
         "description": post.description,
         "likes": post.likes,
         "dislikes": post.dislikes,
-        "image": base64.b64encode(post.image).decode('utf-8') if post.image else None  # Se incluye la imagen
+        "image": base64.b64encode(post.image).decode('utf-8') if post.image else None
     }
 
 @router.put("/posts/{post_id}")
@@ -161,7 +161,7 @@ def get_comments(post_id: int, db: Session = Depends(get_db)):
     comments_data = [{
         "id": c.id,
         "post_id": c.post_id,
-        "user_id": c.user_id,
+        "user": jsonable_encoder(c.user) if c.user else None,
         "created_at": c.created_at.isoformat(),
         "description": c.description,
         "likes": c.likes,
@@ -188,26 +188,6 @@ def delete_comment(comment_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Comentario eliminado"}
 
-@router.post("/posts/{post_id}/like")
-def like_post(post_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
-    # Verifica si ya dio like
-    like_existente = db.query(Like).filter(Like.post_id == post_id, Like.user_id == user_id).first()
-
-    if like_existente:
-        raise HTTPException(status_code=400, detail="Este usuario ya dio like a este post")
-
-    nuevo_like = Like(user_id=user_id, post_id=post_id)
-
-    post = db.query(Post).filter(Post.id == post_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post no encontrado")
-
-    post.likes += 1
-    db.add(nuevo_like)
-    db.commit()
-
-    return {"message": "Like registrado"}
-
 @router.get("/posts/{post_id}/detalles")
 def get_post_with_comments(post_id: int, db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == post_id).first()
@@ -225,7 +205,7 @@ def get_post_with_comments(post_id: int, db: Session = Depends(get_db)):
         "description": post.description,
         "likes": post.likes,
         "dislikes": post.dislikes,
-        "image": base64.b64encode(post.image).decode('utf-8') if post.image else None,  # Se incluye la imagen en los detalles
+        "image": base64.b64encode(post.image).decode('utf-8') if post.image else None,
         "comments": [
             {
                 "id": c.id,
@@ -240,36 +220,78 @@ def get_post_with_comments(post_id: int, db: Session = Depends(get_db)):
 
     return post_data
 
-# ---------- Likes y Dislikes para Posts ----------
+# ---------- Likes y Dislikes para Posts (News) ----------
 
-@router.post("/posts/{post_id}/dislike")
-def dislike_post(post_id: int, db: Session = Depends(get_db)):
+@router.post("/posts/{post_id}/like")
+def like_post(post_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post no encontrado")
+    # Verificar si ya dio like este usuario
+    existing_like = db.query(NewsLike).filter(NewsLike.post_id == post_id, NewsLike.user_id == user_id).first()
+    if existing_like:
+        raise HTTPException(status_code=400, detail="Este usuario ya dio like a este post")
+    nuevo_like = NewsLike(user_id=user_id, post_id=post_id)
+    db.add(nuevo_like)
+    post.likes += 1
+    db.commit()
+    return {"message": "Like registrado", "post_id": post_id, "user_id": user_id}
 
+@router.post("/posts/{post_id}/dislike")
+def dislike_post(post_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post no encontrado")
+    existing_dislike = db.query(NewsDislike).filter(NewsDislike.post_id == post_id, NewsDislike.user_id == user_id).first()
+    if existing_dislike:
+        raise HTTPException(status_code=400, detail="Este usuario ya dio dislike a este post")
+    nuevo_dislike = NewsDislike(user_id=user_id, post_id=post_id)
+    db.add(nuevo_dislike)
     post.dislikes += 1
     db.commit()
-    return {"message": "Dislike registrado en post"}
+    return {"message": "Dislike registrado en post", "post_id": post_id, "user_id": user_id}
 
 # ---------- Likes y Dislikes para Comments ----------
 
 @router.post("/comments/{comment_id}/like")
-def like_comment(comment_id: int, db: Session = Depends(get_db)):
+def like_comment(comment_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
     comment = db.query(Comment).filter(Comment.id == comment_id).first()
     if not comment:
         raise HTTPException(status_code=404, detail="Comentario no encontrado")
-
+    existing_like = db.query(CommentLike).filter(CommentLike.comment_id == comment_id, CommentLike.user_id == user_id).first()
+    if existing_like:
+        raise HTTPException(status_code=400, detail="Este usuario ya dió like a este comentario")
+    nuevo_like = CommentLike(user_id=user_id, comment_id=comment_id)
+    db.add(nuevo_like)
     comment.likes += 1
     db.commit()
-    return {"message": "Like registrado en comentario"}
+    return {"message": "Like registrado en comentario", "comment_id": comment_id, "user_id": user_id}
 
 @router.post("/comments/{comment_id}/dislike")
-def dislike_comment(comment_id: int, db: Session = Depends(get_db)):
+def dislike_comment(comment_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
     comment = db.query(Comment).filter(Comment.id == comment_id).first()
     if not comment:
         raise HTTPException(status_code=404, detail="Comentario no encontrado")
-
+    existing_dislike = db.query(CommentDislike).filter(CommentDislike.comment_id == comment_id, CommentDislike.user_id == user_id).first()
+    if existing_dislike:
+        raise HTTPException(status_code=400, detail="Este usuario ya dió dislike a este comentario")
+    nuevo_dislike = CommentDislike(user_id=user_id, comment_id=comment_id)
+    db.add(nuevo_dislike)
     comment.dislikes += 1
     db.commit()
-    return {"message": "Dislike registrado en comentario"}
+    return {"message": "Dislike registrado en comentario", "comment_id": comment_id, "user_id": user_id}
+
+@router.get("/posts/{post_id}/likes", tags=["News"])
+def get_post_likes(post_id: int, db: Session = Depends(get_db)):
+    likes = db.query(NewsLike).filter(NewsLike.post_id == post_id).all()
+    count = len(likes)
+    # Se asume que la relación "user" está definida en el modelo NewsLike
+    users = [jsonable_encoder(like.user) for like in likes]
+    return {"post_id": post_id, "like_count": count, "users": users}
+
+@router.get("/posts/{post_id}/dislikes", tags=["News"])
+def get_post_dislikes(post_id: int, db: Session = Depends(get_db)):
+    dislikes = db.query(NewsDislike).filter(NewsDislike.post_id == post_id).all()
+    count = len(dislikes)
+    users = [jsonable_encoder(dislike.user) for dislike in dislikes]
+    return {"post_id": post_id, "dislike_count": count, "users": users}

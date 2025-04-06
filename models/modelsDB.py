@@ -59,16 +59,46 @@ class Comment(Base):
     # Relación con usuario
     user = relationship("User", back_populates="comments")
 
-
-class Like(Base):
-    __tablename__ = 'tbLikes'
-
+class NewsLike(Base):
+    __tablename__ = 'tbNewsLikes'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('tbUsers.id'))  
-    post_id = Column(Integer, ForeignKey('tbPosts.id'))  
-
-    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
+    user_id = Column(Integer, ForeignKey('tbUsers.id'))
+    post_id = Column(Integer, ForeignKey('tbPosts.id'))
+    
+    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='unique_user_news_like'),)
     
     user = relationship("User")
     post = relationship("Post")
 
+class NewsDislike(Base):
+    __tablename__ = 'tbNewsDislikes'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('tbUsers.id'))
+    post_id = Column(Integer, ForeignKey('tbPosts.id'))
+    
+    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='unique_user_news_dislike'),)
+    
+    user = relationship("User")
+    post = relationship("Post")
+
+class CommentLike(Base):
+    __tablename__ = 'tbCommentLikes'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('tbUsers.id'))
+    comment_id = Column(Integer, ForeignKey('tbComments.id'))
+
+    __table_args__ = (UniqueConstraint('user_id', 'comment_id', name='unique_user_comment_like'),)
+
+    user = relationship("User")
+    comment = relationship("Comment")
+
+class CommentDislike(Base):
+    __tablename__ = 'tbCommentDislikes'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('tbUsers.id'))
+    comment_id = Column(Integer, ForeignKey('tbComments.id'))
+
+    __table_args__ = (UniqueConstraint('user_id', 'comment_id', name='unique_user_comment_dislike'),)
+
+    user = relationship("User")
+    comment = relationship("Comment")
