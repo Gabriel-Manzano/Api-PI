@@ -9,6 +9,8 @@ import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 from fastapi import HTTPException
 from datetime import datetime, timedelta
+from passlib.context import CryptContext
+
 routerUsuario = APIRouter()
 
 # Nuevo modelo para las credenciales de login
@@ -56,13 +58,24 @@ def leerUno(id: int):
 
 # Endponit Agregar nuevos
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
 @routerUsuario.post('/usuarios', response_model= modeloUsuario, tags=['Operaciones CRUD'])
 def agregarUsuarios(usuario:modeloUsuario):
     db = Session()
     try: 
-        db.add(User(**usuario.model_dump()))
+        user_data = usuario.model_dump()
+        # Hasheamos la contraseña antes de almacenarla
+        user_data["password"] = hash_password(user_data["password"])
+        db.add(User(**user_data))
         db.commit()
-        return JSONResponse(status_code=201, content ={"message": "Usuario Guardado", "usuario": usuario.model_dump()})
+        return JSONResponse(status_code=201, content ={"message": "Usuario Guardado", "usuario": user_data})
  
     except Exception as e:
 
@@ -158,10 +171,16 @@ def login(credenciales: modeloCredenciales):
         usuario = db.query(User).filter(User.email == credenciales.email).first()
         if not usuario:
             return JSONResponse(status_code=404, content={"message": "Usuario no encontrado"})
-        if usuario.password != credenciales.password:
+        if not verify_password(credenciales.password, usuario.password):
             return JSONResponse(status_code=401, content={"message": "Credenciales inválidas"})
         token = createToken({"sub": usuario.email})
-        return JSONResponse(status_code=200, content={"token": token})
+        return JSONResponse(
+            status_code=200,
+            content={
+                "token": token,
+                "usuario": jsonable_encoder(usuario)
+            }
+        )
     except Exception as e:
         return JSONResponse(status_code=500, content={"message": "Error al autenticar", "Exception": str(e)})
     finally:
