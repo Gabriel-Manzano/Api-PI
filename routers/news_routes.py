@@ -295,3 +295,67 @@ def get_post_dislikes(post_id: int, db: Session = Depends(get_db)):
     count = len(dislikes)
     users = [jsonable_encoder(dislike.user) for dislike in dislikes]
     return {"post_id": post_id, "dislike_count": count, "users": users}
+
+@router.delete("/posts/{post_id}/like")
+def remove_like(post_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
+    like = db.query(NewsLike).filter(NewsLike.post_id == post_id, NewsLike.user_id == user_id).first()
+    if not like:
+        raise HTTPException(status_code=404, detail="Like no encontrado")
+    db.delete(like)
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if post and post.likes > 0:
+        post.likes -= 1
+    db.commit()
+    return {"message": "Like removido", "post_id": post_id, "user_id": user_id}
+
+# Remover like de un post (news)
+@router.delete("/posts/{post_id}/like")
+def remove_like_post(post_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
+    like = db.query(NewsLike).filter(NewsLike.post_id == post_id, NewsLike.user_id == user_id).first()
+    if not like:
+        raise HTTPException(status_code=404, detail="Like no encontrado")
+    db.delete(like)
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if post and post.likes > 0:
+        post.likes -= 1
+    db.commit()
+    return {"message": "Like retirado", "post_id": post_id, "user_id": user_id}
+
+# Remover dislike de un post (news)
+@router.delete("/posts/{post_id}/dislike")
+def remove_dislike_post(post_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
+    dislike = db.query(NewsDislike).filter(NewsDislike.post_id == post_id, NewsDislike.user_id == user_id).first()
+    if not dislike:
+        raise HTTPException(status_code=404, detail="Dislike no encontrado")
+    db.delete(dislike)
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if post and post.dislikes > 0:
+        post.dislikes -= 1
+    db.commit()
+    return {"message": "Dislike retirado", "post_id": post_id, "user_id": user_id}
+
+# Remover like de un comentario
+@router.delete("/comments/{comment_id}/like")
+def remove_like_comment(comment_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
+    like = db.query(CommentLike).filter(CommentLike.comment_id == comment_id, CommentLike.user_id == user_id).first()
+    if not like:
+        raise HTTPException(status_code=404, detail="Like en comentario no encontrado")
+    db.delete(like)
+    comment = db.query(Comment).filter(Comment.id == comment_id).first()
+    if comment and comment.likes > 0:
+        comment.likes -= 1
+    db.commit()
+    return {"message": "Like retirado del comentario", "comment_id": comment_id, "user_id": user_id}
+
+# Remover dislike de un comentario
+@router.delete("/comments/{comment_id}/dislike")
+def remove_dislike_comment(comment_id: int, user_id: int = Form(...), db: Session = Depends(get_db)):
+    dislike = db.query(CommentDislike).filter(CommentDislike.comment_id == comment_id, CommentDislike.user_id == user_id).first()
+    if not dislike:
+        raise HTTPException(status_code=404, detail="Dislike en comentario no encontrado")
+    db.delete(dislike)
+    comment = db.query(Comment).filter(Comment.id == comment_id).first()
+    if comment and comment.dislikes > 0:
+        comment.dislikes -= 1
+    db.commit()
+    return {"message": "Dislike retirado del comentario", "comment_id": comment_id, "user_id": user_id}
