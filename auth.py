@@ -2,14 +2,11 @@ import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 from fastapi import HTTPException
 from datetime import datetime, timedelta
-
-# Función para crear un token con expiración
 def createToken(data: dict):
-    # Añadir expiración (1 hora en este ejemplo)
-    exp = datetime.utcnow() + timedelta(hours=1)
+    exp = datetime.utcnow() + timedelta(days=7)
     payload = data.copy()
     payload.update({"exp": exp})
-    token: str = jwt.encode(payload=payload, key='secretKey', algorithm='HS256')
+    token: str = jwt.encode(payload=payload,  key='secretKey', algorithm='HS256')
     return token
 
 # Función para validar el token
