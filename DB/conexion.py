@@ -2,11 +2,29 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from dotenv import load_dotenv
 
-dbName = "Sustainity_Usuarios.sqlite"
-base_dir = os.path.dirname(os.path.realpath(__file__))
-dbURL = f"sqlite:///{os.path.join(base_dir,dbName)}"
+# Cargar variables de entorno
+load_dotenv()
 
-engine = create_engine(dbURL, echo=True)
+# Obtener variables de entorno
+DB_CONNECTION = os.getenv('DB_CONNECTION')
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+DB_DATABASE = os.getenv('DB_DATABASE')
+DB_USERNAME = os.getenv('DB_USERNAME')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+
+# Crear URL de conexión para MySQL
+DATABASE_URL = f"mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_DATABASE}"
+
+# Crear el engine
+engine = create_engine(
+    DATABASE_URL,
+    echo=True,
+    pool_size=10,
+    max_overflow=20
+)
+
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
